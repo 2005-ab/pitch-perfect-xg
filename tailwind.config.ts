@@ -22,7 +22,17 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          glow: "hsl(var(--primary-glow))",
         },
+        pitch: {
+          DEFAULT: "hsl(var(--pitch))",
+          lines: "hsl(var(--pitch-lines))",
+          penalty: "hsl(var(--pitch-penalty))",
+          center: "hsl(var(--pitch-center))",
+        },
+        goalkeeper: "hsl(var(--goalkeeper))",
+        shooter: "hsl(var(--shooter))",
+        defender: "hsl(var(--defender))",
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",

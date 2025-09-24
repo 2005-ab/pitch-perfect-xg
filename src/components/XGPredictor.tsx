@@ -27,11 +27,11 @@ interface XGParameters {
   underPressure: boolean;
 }
 
-type SetupStep = 'goalkeeper' | 'shooter' | 'defender' | 'parameters' | 'complete';
+type SetupStep = 'shooter' | 'defender' | 'parameters' | 'complete';
 
 export const XGPredictor: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
-  const [currentStep, setCurrentStep] = useState<SetupStep>('goalkeeper');
+  const [currentStep, setCurrentStep] = useState<SetupStep>('shooter');
   const [parameters, setParameters] = useState<XGParameters>({
     minute: 45,
     second: 30,
@@ -47,11 +47,12 @@ export const XGPredictor: React.FC = () => {
   });
   const [predictedXG, setPredictedXG] = useState<number | null>(null);
 
-  const goalkeeper = players.find(p => p.type === 'goalkeeper');
+  // Fixed goalkeeper position
+  const fixedGoalkeeper = { x: 95, y: 32.5, type: 'goalkeeper' as const, id: 'fixed-gk' };
   const shooter = players.find(p => p.type === 'shooter');
   const defenders = players.filter(p => p.type === 'defender');
 
-  // Calculate pitch metrics (pitch is 100x65 units, representing ~105x68m)
+  // Calculate pitch metrics (half pitch is 50x65 units, representing ~52.5x68m)
   const calculatedMetrics = useMemo(() => {
     if (!shooter) {
       return {
@@ -63,11 +64,11 @@ export const XGPredictor: React.FC = () => {
       };
     }
 
-    // Convert pitch coordinates to meters (approximate)
-    const pitchWidth = 105; // meters
+    // Convert pitch coordinates to meters (half pitch - 50 units = 52.5m)
+    const pitchWidth = 52.5; // meters (half pitch)
     const pitchHeight = 68; // meters
     
-    const shooterX = (shooter.x / 100) * pitchWidth;
+    const shooterX = ((shooter.x - 50) / 50) * pitchWidth; // Offset by 50 for half pitch
     const shooterY = (shooter.y / 65) * pitchHeight;
     const goalX = pitchWidth;
     const goalY = pitchHeight / 2;
@@ -91,7 +92,7 @@ export const XGPredictor: React.FC = () => {
     // Nearest defender distance
     let nearestDefenderDist = Infinity;
     defenders.forEach(defender => {
-      const defX = (defender.x / 100) * pitchWidth;
+      const defX = ((defender.x - 50) / 50) * pitchWidth;
       const defY = (defender.y / 65) * pitchHeight;
       const dist = Math.sqrt(
         Math.pow(defX - shooterX, 2) + Math.pow(defY - shooterY, 2)
@@ -101,15 +102,12 @@ export const XGPredictor: React.FC = () => {
       }
     });
 
-    // Goalkeeper distance
-    let goalkeeperDist = 0;
-    if (goalkeeper) {
-      const gkX = (goalkeeper.x / 100) * pitchWidth;
-      const gkY = (goalkeeper.y / 65) * pitchHeight;
-      goalkeeperDist = Math.sqrt(
-        Math.pow(gkX - shooterX, 2) + Math.pow(gkY - shooterY, 2)
-      );
-    }
+    // Goalkeeper distance (fixed position)
+    const gkX = ((fixedGoalkeeper.x - 50) / 50) * pitchWidth;
+    const gkY = (fixedGoalkeeper.y / 65) * pitchHeight;
+    const goalkeeperDist = Math.sqrt(
+      Math.pow(gkX - shooterX, 2) + Math.pow(gkY - shooterY, 2)
+    );
 
     return {
       distance: distance,
@@ -118,7 +116,7 @@ export const XGPredictor: React.FC = () => {
       nearestDefenderDist: nearestDefenderDist === Infinity ? 0 : nearestDefenderDist,
       goalkeeperDist: goalkeeperDist,
     };
-  }, [shooter, defenders, goalkeeper]);
+  }, [shooter, defenders, fixedGoalkeeper]);
 
   const handlePlayerAdd = (player: Omit<Player, 'id'>) => {
     const newPlayer: Player = {
@@ -126,10 +124,7 @@ export const XGPredictor: React.FC = () => {
       id: `${player.type}-${Date.now()}`,
     };
 
-    if (player.type === 'goalkeeper' && goalkeeper) {
-      // Replace existing goalkeeper
-      setPlayers(prev => prev.filter(p => p.type !== 'goalkeeper').concat(newPlayer));
-    } else if (player.type === 'shooter' && shooter) {
+    if (player.type === 'shooter' && shooter) {
       // Replace existing shooter
       setPlayers(prev => prev.filter(p => p.type !== 'shooter').concat(newPlayer));
     } else {
@@ -137,10 +132,7 @@ export const XGPredictor: React.FC = () => {
     }
 
     // Auto-advance to next step
-    if (player.type === 'goalkeeper' && currentStep === 'goalkeeper') {
-      setCurrentStep('shooter');
-      toast('Goalkeeper placed! Now place the shooter.');
-    } else if (player.type === 'shooter' && currentStep === 'shooter') {
+    if (player.type === 'shooter' && currentStep === 'shooter') {
       setCurrentStep('defender');
       toast('Shooter placed! Add defenders or continue to parameters.');
     }
@@ -168,7 +160,7 @@ export const XGPredictor: React.FC = () => {
 
   const reset = () => {
     setPlayers([]);
-    setCurrentStep('goalkeeper');
+    setCurrentStep('shooter');
     setPredictedXG(null);
     setParameters({
       minute: 45,
@@ -186,8 +178,7 @@ export const XGPredictor: React.FC = () => {
     toast('Scenario reset');
   };
 
-  const getCurrentMode = (): 'goalkeeper' | 'shooter' | 'defender' | 'none' => {
-    if (currentStep === 'goalkeeper') return 'goalkeeper';
+  const getCurrentMode = (): 'shooter' | 'defender' | 'none' => {
     if (currentStep === 'shooter') return 'shooter';
     if (currentStep === 'defender') return 'defender';
     return 'none';
@@ -201,23 +192,23 @@ export const XGPredictor: React.FC = () => {
             Football xG Predictor
           </h1>
           <p className="text-muted-foreground">
-            Machine Learning Expected Goals Calculator
+            Machine Learning Expected Goals Calculator - Half Pitch View
           </p>
         </div>
 
         {/* Progress Steps */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center space-x-4">
-            {(['goalkeeper', 'shooter', 'defender', 'parameters', 'complete'] as SetupStep[]).map((step, index) => (
+            {(['shooter', 'defender', 'parameters', 'complete'] as SetupStep[]).map((step, index) => (
               <div key={step} className="flex items-center">
                 <Badge 
                   variant={currentStep === step ? 'default' : 
-                           index < (['goalkeeper', 'shooter', 'defender', 'parameters', 'complete'] as SetupStep[]).indexOf(currentStep) ? 'secondary' : 'outline'}
+                           index < (['shooter', 'defender', 'parameters', 'complete'] as SetupStep[]).indexOf(currentStep) ? 'secondary' : 'outline'}
                   className="capitalize"
                 >
                   {step === 'complete' ? 'Results' : step}
                 </Badge>
-                {index < 4 && <div className="w-8 h-px bg-border mx-2" />}
+                {index < 3 && <div className="w-8 h-px bg-border mx-2" />}
               </div>
             ))}
           </div>
@@ -228,10 +219,10 @@ export const XGPredictor: React.FC = () => {
           <div className="lg:col-span-2">
             <Card>
               <CardHeader>
-                <CardTitle>Football Pitch</CardTitle>
+                <CardTitle>Football Pitch (Attacking Half)</CardTitle>
                 <div className="flex justify-between items-center">
                   <div className="text-sm text-muted-foreground">
-                    Players: {goalkeeper ? '1 GK' : '0 GK'}, {shooter ? '1 Shooter' : '0 Shooter'}, {defenders.length} Defenders
+                    Players: Fixed GK, {shooter ? '1 Shooter' : '0 Shooter'}, {defenders.length} Defenders
                   </div>
                   <Button variant="outline" size="sm" onClick={reset}>
                     Reset
@@ -251,7 +242,7 @@ export const XGPredictor: React.FC = () => {
                   {currentStep === 'defender' && (
                     <Button 
                       onClick={() => setCurrentStep('parameters')}
-                      disabled={!goalkeeper || !shooter}
+                      disabled={!shooter}
                     >
                       Continue to Parameters
                     </Button>
@@ -287,18 +278,19 @@ export const XGPredictor: React.FC = () => {
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 rounded-full bg-goalkeeper"></div>
-                      <span>1. Place goalkeeper first</span>
+                      <span>Goalkeeper: Fixed position in goal</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 rounded-full bg-shooter"></div>
-                      <span>2. Place shooter position</span>
+                      <span>1. Click to place shooter position</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <div className="w-3 h-3 rounded-full bg-defender"></div>
-                      <span>3. Add defenders (optional)</span>
+                      <span>2. Add defenders (optional)</span>
                     </div>
                     <div className="text-muted-foreground text-xs">
-                      Defenders can only be placed in front of the shooter (closer to goal)
+                      • Half pitch view for more realistic shot scenarios<br/>
+                      • Defenders can only be placed in front of the shooter
                     </div>
                   </div>
                 </CardContent>

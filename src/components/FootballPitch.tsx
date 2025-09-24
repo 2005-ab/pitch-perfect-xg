@@ -11,7 +11,7 @@ interface Player {
 interface FootballPitchProps {
   players: Player[];
   onPlayerAdd: (player: Omit<Player, 'id'>) => void;
-  currentMode: 'goalkeeper' | 'shooter' | 'defender' | 'none';
+  currentMode: 'shooter' | 'defender' | 'none';
   shooterPosition?: { x: number; y: number };
 }
 
@@ -23,6 +23,9 @@ export const FootballPitch: React.FC<FootballPitchProps> = ({
 }) => {
   const pitchRef = useRef<SVGSVGElement>(null);
 
+  // Fixed goalkeeper position (center of goal)
+  const fixedGoalkeeper = { x: 95, y: 32.5, type: 'goalkeeper' as const, id: 'fixed-gk' };
+
   const handlePitchClick = (event: React.MouseEvent<SVGSVGElement>) => {
     if (currentMode === 'none') return;
 
@@ -30,7 +33,7 @@ export const FootballPitch: React.FC<FootballPitchProps> = ({
     if (!rect) return;
 
     const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 65;
 
     // For defenders, only allow placement in front of shooter (closer to goal)
     if (currentMode === 'defender' && shooterPosition) {
@@ -55,6 +58,9 @@ export const FootballPitch: React.FC<FootballPitchProps> = ({
     }
   };
 
+  // Combine fixed goalkeeper with other players
+  const allPlayers = [fixedGoalkeeper, ...players];
+
   return (
     <div className="relative bg-gradient-to-br from-pitch to-pitch-penalty rounded-lg shadow-[--shadow-pitch] overflow-hidden">
       <svg
@@ -66,43 +72,38 @@ export const FootballPitch: React.FC<FootballPitchProps> = ({
         {/* Pitch background */}
         <rect width="100" height="65" className="fill-pitch" />
         
-        {/* Pitch markings */}
+        {/* Half pitch markings (attacking half only) */}
         <g className="stroke-pitch-lines stroke-[0.2] fill-none">
-          {/* Outer boundary */}
-          <rect x="1" y="1" width="98" height="63" />
+          {/* Outer boundary (right half) */}
+          <rect x="50" y="1" width="49" height="63" />
           
           {/* Center line */}
           <line x1="50" y1="1" x2="50" y2="64" />
           
-          {/* Center circle */}
-          <circle cx="50" cy="32.5" r="8" />
+          {/* Center circle (half) */}
+          <path d="M 50 24.5 A 8 8 0 0 1 50 40.5" />
           <circle cx="50" cy="32.5" r="0.5" className="fill-pitch-lines" />
-          
-          {/* Left penalty area */}
-          <rect x="1" y="19.5" width="16" height="26" />
-          <rect x="1" y="25" width="5.5" height="15" />
           
           {/* Right penalty area */}
           <rect x="83" y="19.5" width="16" height="26" />
-          <rect x="94.5" y="25" width="5.5" height="15" />
-          
-          {/* Left goal */}
-          <rect x="0" y="28.5" width="1" height="8" className="stroke-[0.3]" />
+          <rect x="94.5" y="25" width="4.5" height="15" />
           
           {/* Right goal */}
           <rect x="99" y="28.5" width="1" height="8" className="stroke-[0.3]" />
           
-          {/* Penalty spots */}
-          <circle cx="11" cy="32.5" r="0.3" className="fill-pitch-lines" />
+          {/* Penalty spot */}
           <circle cx="89" cy="32.5" r="0.3" className="fill-pitch-lines" />
           
-          {/* Penalty arcs */}
-          <path d="M 17 22.5 A 8 8 0 0 1 17 42.5" />
+          {/* Penalty arc */}
           <path d="M 83 22.5 A 8 8 0 0 0 83 42.5" />
+
+          {/* Corner arcs */}
+          <path d="M 99 1 A 1 1 0 0 0 98 2" />
+          <path d="M 99 64 A 1 1 0 0 1 98 63" />
         </g>
         
         {/* Players */}
-        {players.map((player) => (
+        {allPlayers.map((player) => (
           <g key={player.id}>
             <circle
               cx={player.x}
@@ -139,8 +140,7 @@ export const FootballPitch: React.FC<FootballPitchProps> = ({
       {/* Instructions overlay */}
       {currentMode !== 'none' && (
         <div className="absolute top-4 left-4 bg-black/80 text-white px-3 py-2 rounded-md text-sm">
-          {currentMode === 'goalkeeper' && 'Click to place goalkeeper'}
-          {currentMode === 'shooter' && 'Click to place shooter'}
+          {currentMode === 'shooter' && 'Click to place shooter position'}
           {currentMode === 'defender' && 'Click to place defenders (only in front of shooter)'}
         </div>
       )}

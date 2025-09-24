@@ -65,7 +65,7 @@ export const FootballPitch: React.FC<FootballPitchProps> = ({
     <div className="relative bg-gradient-to-br from-pitch to-pitch-penalty rounded-lg shadow-[--shadow-pitch] overflow-hidden">
       <svg
         ref={pitchRef}
-        viewBox="0 0 100 65"
+        viewBox="50 0 50 65"
         className="w-full h-full cursor-crosshair"
         onClick={handlePitchClick}
       >

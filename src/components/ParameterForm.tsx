@@ -7,9 +7,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 interface XGParameters {
   minute: number;
-  second: number;
-  team: string;
-  player: string;
   playerRole: string;
   shotHeight: string;
   shotType: string;
@@ -44,46 +41,15 @@ export const ParameterForm: React.FC<ParameterFormProps> = ({
           <CardTitle>Match Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="minute">Minute</Label>
-              <Input
-                id="minute"
-                type="number"
-                min="0"
-                max="120"
-                value={parameters.minute}
-                onChange={(e) => onParameterChange('minute', parseInt(e.target.value) || 0)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="second">Second</Label>
-              <Input
-                id="second"
-                type="number"
-                min="0"
-                max="59"
-                value={parameters.second}
-                onChange={(e) => onParameterChange('second', parseInt(e.target.value) || 0)}
-              />
-            </div>
-          </div>
           <div>
-            <Label htmlFor="team">Team</Label>
+            <Label htmlFor="minute">Minute</Label>
             <Input
-              id="team"
-              value={parameters.team}
-              onChange={(e) => onParameterChange('team', e.target.value)}
-              placeholder="Team name"
-            />
-          </div>
-          <div>
-            <Label htmlFor="player">Player</Label>
-            <Input
-              id="player"
-              value={parameters.player}
-              onChange={(e) => onParameterChange('player', e.target.value)}
-              placeholder="Player name"
+              id="minute"
+              type="number"
+              min="0"
+              max="120"
+              value={parameters.minute}
+              onChange={(e) => onParameterChange('minute', parseInt(e.target.value) || 0)}
             />
           </div>
           <div>

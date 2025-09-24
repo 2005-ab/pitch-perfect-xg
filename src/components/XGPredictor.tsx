@@ -15,9 +15,6 @@ interface Player {
 
 interface XGParameters {
   minute: number;
-  second: number;
-  team: string;
-  player: string;
   playerRole: string;
   shotHeight: string;
   shotType: string;
@@ -34,9 +31,6 @@ export const XGPredictor: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<SetupStep>('shooter');
   const [parameters, setParameters] = useState<XGParameters>({
     minute: 45,
-    second: 30,
-    team: '',
-    player: '',
     playerRole: '',
     shotHeight: '',
     shotType: '',
@@ -164,9 +158,6 @@ export const XGPredictor: React.FC = () => {
     setPredictedXG(null);
     setParameters({
       minute: 45,
-      second: 30,
-      team: '',
-      player: '',
       playerRole: '',
       shotHeight: '',
       shotType: '',

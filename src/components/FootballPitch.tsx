@@ -32,8 +32,12 @@ export const FootballPitch: React.FC<FootballPitchProps> = ({
     const rect = pitchRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 65;
+    // Map click to the visible half-pitch coordinates.
+    // The SVG viewBox is "50 0 50 65", so x spans [50, 100] and y spans [0, 65].
+    const relX = (event.clientX - rect.left) / rect.width; // 0..1 across visible width
+    const relY = (event.clientY - rect.top) / rect.height; // 0..1 across visible height
+    const x = 50 + relX * 50;
+    const y = relY * 65;
 
     // For defenders, only allow placement in front of shooter (closer to goal)
     if (currentMode === 'defender' && shooterPosition) {

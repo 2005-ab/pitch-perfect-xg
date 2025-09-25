@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { FootballPitch } from './FootballPitch';
 import { ParameterForm } from './ParameterForm';
 import { toast } from 'sonner';
+import { postJson } from '@/lib/utils';
 
 interface Player {
   id: string;
@@ -46,7 +47,7 @@ export const XGPredictor: React.FC = () => {
   const shooter = players.find(p => p.type === 'shooter');
   const defenders = players.filter(p => p.type === 'defender');
 
-  // Calculate pitch metrics (half pitch is 50x65 units, representing ~52.5x68m)
+  // Calculate pitch metrics
   const calculatedMetrics = useMemo(() => {
     if (!shooter) {
       return {
@@ -58,32 +59,27 @@ export const XGPredictor: React.FC = () => {
       };
     }
 
-    // Convert pitch coordinates to meters (half pitch - 50 units = 52.5m)
-    const pitchWidth = 52.5; // meters (half pitch)
-    const pitchHeight = 68; // meters
+    const pitchWidth = 52.5;
+    const pitchHeight = 68;
     
-    const shooterX = ((shooter.x - 50) / 50) * pitchWidth; // Offset by 50 for half pitch
+    const shooterX = ((shooter.x - 50) / 50) * pitchWidth;
     const shooterY = (shooter.y / 65) * pitchHeight;
     const goalX = pitchWidth;
     const goalY = pitchHeight / 2;
 
-    // Distance to goal center
     const distance = Math.sqrt(
       Math.pow(goalX - shooterX, 2) + Math.pow(goalY - shooterY, 2)
     );
 
-    // Shooting angle (angle between shooter and goal posts)
-    const goalPostTop = pitchHeight / 2 - 3.66; // 7.32m goal width
+    const goalPostTop = pitchHeight / 2 - 3.66;
     const goalPostBottom = pitchHeight / 2 + 3.66;
     
     const angleTop = Math.atan2(goalPostTop - shooterY, goalX - shooterX);
     const angleBottom = Math.atan2(goalPostBottom - shooterY, goalX - shooterX);
     const angle = Math.abs(angleTop - angleBottom) * (180 / Math.PI);
 
-    // Defenders in front (x coordinate greater than shooter's)
     const defendersInFront = defenders.filter(d => d.x > shooter.x).length;
 
-    // Nearest defender distance
     let nearestDefenderDist = Infinity;
     defenders.forEach(defender => {
       const defX = ((defender.x - 50) / 50) * pitchWidth;
@@ -96,7 +92,6 @@ export const XGPredictor: React.FC = () => {
       }
     });
 
-    // Goalkeeper distance (fixed position)
     const gkX = ((fixedGoalkeeper.x - 50) / 50) * pitchWidth;
     const gkY = (fixedGoalkeeper.y / 65) * pitchHeight;
     const goalkeeperDist = Math.sqrt(
@@ -115,17 +110,15 @@ export const XGPredictor: React.FC = () => {
   const handlePlayerAdd = (player: Omit<Player, 'id'>) => {
     const newPlayer: Player = {
       ...player,
-      id: `${player.type}-${Date.now()}`,
+      id: `${player.type}-${Date.now()}`, // ✅ fixed template string
     };
 
     if (player.type === 'shooter' && shooter) {
-      // Replace existing shooter
       setPlayers(prev => prev.filter(p => p.type !== 'shooter').concat(newPlayer));
     } else {
       setPlayers(prev => [...prev, newPlayer]);
     }
 
-    // Auto-advance to next step
     if (player.type === 'shooter' && currentStep === 'shooter') {
       setCurrentStep('defender');
       toast('Shooter placed! Add defenders or continue to parameters.');
@@ -136,8 +129,33 @@ export const XGPredictor: React.FC = () => {
     setParameters(prev => ({ ...prev, [key]: value }));
   };
 
-  const calculateXG = () => {
-    // Simple xG calculation (in reality, you'd use your trained XGBoost model)
+  const calculateXG = async () => {
+    try {
+      const payload = {
+        distance: calculatedMetrics.distance,
+        angle: calculatedMetrics.angle,
+        defenders_in_front: calculatedMetrics.defendersInFront,
+        nearest_defender: calculatedMetrics.nearestDefenderDist,
+        goalkeeper_distance: calculatedMetrics.goalkeeperDist,
+        minute: parameters.minute,
+        playerRole: parameters.playerRole,
+        shotHeight: parameters.shotHeight,
+        shotType: parameters.shotType,
+        technique: parameters.technique,
+        bodyPart: parameters.bodyPart,
+        firstTime: parameters.firstTime,
+        underPressure: parameters.underPressure,
+      };
+      const resp = await postJson<typeof payload, { xg: number }>('http://localhost:8000/predict', payload);
+      const xg = Math.max(0.0, Math.min(0.99, resp.xg));
+      setPredictedXG(xg);
+      setCurrentStep('complete');
+      toast(`xG (model): ${(xg * 100).toFixed(1)}%`); // ✅ fixed
+      return;
+    } catch (e) {
+      console.warn('Model API failed, using heuristic xG', e);
+    }
+
     const baseXG = Math.max(0.01, Math.min(0.95, 
       0.5 * (1 / (1 + calculatedMetrics.distance / 10)) * 
       (calculatedMetrics.angle / 30) * 
@@ -149,7 +167,7 @@ export const XGPredictor: React.FC = () => {
 
     setPredictedXG(baseXG);
     setCurrentStep('complete');
-    toast(`xG calculated: ${(baseXG * 100).toFixed(1)}%`);
+    toast(`xG (fallback): ${(baseXG * 100).toFixed(1)}%`); // ✅ fixed
   };
 
   const reset = () => {
